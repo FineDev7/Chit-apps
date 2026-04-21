@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-glass-hover: rgba(255, 255, 255, 0.15);
+  
+  --color-accent: #4facfe;
+  --color-accent-blue: #00f2fe;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-warning: #ea7908;
+  
+  --font-sans: "Inter", "SF Pro Text", -apple-system, sans-serif;
+  --shadow-glass: 0 0 15px rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+  body {
+    @apply text-white min-h-screen font-sans;
+    background: radial-gradient(circle at top left, #2d1b69 0%, #1a1a2e 40%, #16213e 100%);
+    background-attachment: fixed;
+    margin: 0;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: var(--color-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-glass-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-glass);
+  }
+
+  .glass-card {
+    background: var(--color-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-glass-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-glass);
+    @apply p-5 transition-all duration-300;
+  }
+  
+  .glass-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--color-glass-hover);
+  }
+
+  .glass-input {
+    @apply bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-sm transition-all;
+  }
+  
+  .glass-input:focus {
+    @apply outline-none border-accent/50 bg-accent/5;
+  }
+
+  .glass-btn {
+    @apply bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-medium transition-all active:scale-95 flex items-center justify-center;
+  }
+  
+  .glass-btn:hover {
+    @apply bg-white/10 border-white/20;
+  }
+
+  .glass-btn-primary {
+    @apply bg-accent/20 border-accent/40 text-white hover:bg-accent/30;
+    box-shadow: 0 0 15px rgba(79, 172, 254, 0.1);
+  }
+
+  .pill {
+    @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border;
+  }
+
+  .pill-green {
+    @apply bg-success/20 text-[#86efac] border-success/30;
+  }
+
+  .pill-red {
+    @apply bg-danger/20 text-[#fca5a5] border-danger/30;
+  }
+
+  .pill-yellow {
+    @apply bg-warning/20 text-[#fde047] border-warning/30;
+  }
+}
