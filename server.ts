@@ -57,6 +57,7 @@ async function startServer() {
       status TEXT DEFAULT 'unpaid',
       method TEXT,
       payment_date TEXT,
+      due_date TEXT,
       FOREIGN KEY(member_id) REFERENCES members(id)
     )`);
 
@@ -89,15 +90,46 @@ async function startServer() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
       member_id INTEGER,
       admin_requested INTEGER DEFAULT 0,
       FOREIGN KEY(member_id) REFERENCES members(id)
     )`);
 
+    // Messages Table
+    db.run(`CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER,
+      receiver_id INTEGER,
+      content TEXT,
+      timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+      is_read INTEGER DEFAULT 0
+    )`);
+
+    // Seed Admin
+    db.get("SELECT * FROM users WHERE email = 'admin@chitapp'", (err, row) => {
+      if (!row) {
+        db.run("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+          ['Administrator', 'admin@chitapp', 'admin123', 'master_admin']);
+      }
+    });
+
   });
 
   // API Routes
+  app.post("/api/login", (req, res) => {
+    const { email, password } = req.body;
+    db.get("SELECT * FROM users WHERE email = ? AND password = ?", [email, password], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (row) {
+        res.json(row);
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    });
+  });
+
   app.get("/api/dashboard", (req, res) => {
     // Aggregated stats
     const queries = [
@@ -153,6 +185,22 @@ async function startServer() {
     });
   });
 
+  app.post("/api/reminders/process", (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    db.all(`SELECT p.*, m.name as member_name, m.id as member_id FROM payments p
+            JOIN members m ON p.member_id = m.id
+            WHERE p.status = 'unpaid' AND p.due_date < ?`, [today], (err, rows: any[]) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      rows.forEach(row => {
+        db.run(`INSERT INTO notifications (member_id, type, channel, status) VALUES (?, ?, ?, ?)`,
+          [row.member_id, 'Overdue Payment Reminder', 'WhatsApp', 'Sent']);
+      });
+
+      res.json({ processed: rows.length });
+    });
+  });
+
   app.get("/api/members", (req, res) => {
     db.all(`SELECT m.*, c.name as chit_name,
             (SELECT SUM(amount) FROM payments WHERE member_id = m.id AND status = 'paid') as total_paid,
@@ -160,6 +208,22 @@ async function startServer() {
             FROM members m 
             LEFT JOIN chits c ON m.chit_id = c.id`, (err, rows) => {
       res.json(rows);
+    });
+  });
+
+  app.get("/api/messages", (req, res) => {
+    const { userId } = req.query;
+    db.all(`SELECT * FROM messages WHERE sender_id = ? OR receiver_id = ? ORDER BY timestamp ASC`, [userId, userId], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    });
+  });
+
+  app.post("/api/messages", (req, res) => {
+    const { sender_id, receiver_id, content } = req.body;
+    db.run(`INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)`, [sender_id, receiver_id, content], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID });
     });
   });
 
@@ -187,10 +251,30 @@ async function startServer() {
 
   app.post("/api/members", (req, res) => {
     const { name, phone, email, chit_id, pref_channel } = req.body;
-    db.run(`INSERT INTO members (name, phone, email, chit_id, pref_channel) VALUES (?, ?, ?, ?, ?)`,
-      [name, phone, email, chit_id, pref_channel], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID });
+
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+
+      db.run(`INSERT INTO members (name, phone, email, chit_id, pref_channel) VALUES (?, ?, ?, ?, ?)`,
+        [name, phone, email, chit_id, pref_channel], function(err) {
+        if (err) {
+          db.run("ROLLBACK");
+          return res.status(500).json({ error: err.message });
+        }
+
+        const memberId = this.lastID;
+        const password = name.split(' ')[0].toLowerCase() + (phone ? phone.slice(-4) : '1234');
+
+        db.run(`INSERT INTO users (name, email, password, role, member_id) VALUES (?, ?, ?, ?, ?)`,
+          [name, email, password, 'user', memberId], function(err2) {
+          if (err2) {
+            db.run("ROLLBACK");
+            return res.status(500).json({ error: err2.message });
+          }
+          db.run("COMMIT");
+          res.json({ id: memberId, email, password });
+        });
+      });
     });
   });
 

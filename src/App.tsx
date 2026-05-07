@@ -10,6 +10,7 @@ import {
   Users, 
   Wallet, 
   Gavel, 
+  MessageSquare,
   LineChart, 
   Bell, 
   LayoutDashboard, 
@@ -81,6 +82,7 @@ export default function App() {
     amount: '',
     method: 'UPI',
     payment_date: new Date().toISOString().split('T')[0],
+    due_date: new Date(new Date().getFullYear(), new Date().getMonth(), 10).toISOString().split('T')[0], // Default 10th of month
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     status: 'paid'
@@ -119,7 +121,8 @@ export default function App() {
     members, fetchMembers, addMember,
     payments, fetchPayments, addPayment,
     auctions, fetchAuctions, addAuction,
-    notifications, fetchNotifications
+    notifications, fetchNotifications,
+    messages, fetchMessages, sendMessage
   } = useStore();
 
   // Compute charts data from actual store state
@@ -183,7 +186,8 @@ export default function App() {
     fetchPayments();
     fetchAuctions();
     fetchNotifications();
-  }, []);
+    if (user) fetchMessages();
+  }, [user]);
 
   const exportToCSV = (data: any[], fileName: string) => {
     if (data.length === 0) return;
@@ -230,6 +234,7 @@ export default function App() {
       amount: '',
       method: 'UPI',
       payment_date: new Date().toISOString().split('T')[0],
+      due_date: new Date(new Date().getFullYear(), new Date().getMonth(), 10).toISOString().split('T')[0],
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       status: 'paid'
@@ -288,7 +293,8 @@ export default function App() {
   };
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('master@demo.com');
+  const [loginEmail, setLoginEmail] = useState('admin@chitapp');
+  const [loginPassword, setLoginPassword] = useState('admin123');
   const [loginError, setLoginError] = useState('');
 
   const navigation = user?.role === 'user' ? [
@@ -296,23 +302,17 @@ export default function App() {
     { id: 'chits', icon: FolderKanban, label: 'My Chits' },
     { id: 'payments', icon: Wallet, label: 'My Payments' },
     { id: 'auctions', icon: Gavel, label: 'Auctions' },
+    { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'notifications', icon: Bell, label: 'Alerts' }
-  ] : (user?.role === 'master_admin' ? [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'chits', icon: FolderKanban, label: 'Chits' },
-    { id: 'members', icon: Users, label: 'Members' },
-    { id: 'users', icon: CheckCircle2, label: 'Permissions' },
-    { id: 'payments', icon: Wallet, label: 'Payments' },
-    { id: 'auctions', icon: Gavel, label: 'Auctions' }
   ] : [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'chits', icon: FolderKanban, label: 'Chits' },
     { id: 'members', icon: Users, label: 'Members' },
     { id: 'payments', icon: Wallet, label: 'Payments' },
     { id: 'auctions', icon: Gavel, label: 'Auctions' },
-    { id: 'analytics', icon: LineChart, label: 'Analytics' },
+    { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'notifications', icon: Bell, label: 'Alerts' }
-  ]);
+  ];
 
   if (!user) {
     return (
@@ -335,25 +335,33 @@ export default function App() {
             className="w-full space-y-4"
             onSubmit={async (e) => {
               e.preventDefault();
-              const success = await login(loginEmail);
-              if (!success) setLoginError('Invalid demo email.');
+              const success = await login(loginEmail, loginPassword);
+              if (!success) setLoginError('Invalid email or password.');
             }}
           >
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-bold text-white/50 px-1">Email Address</label>
-              <select
+              <input
+                type="text"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 className="glass-input w-full bg-[#1a1a2e]"
-              >
-                <option value="master@demo.com">Master Admin (master@demo.com)</option>
-                <option value="admin@demo.com">Chit Admin (admin@demo.com)</option>
-                <option value="user@demo.com">Regular User (user@demo.com)</option>
-              </select>
+                placeholder="email@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-white/50 px-1">Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="glass-input w-full bg-[#1a1a2e]"
+                placeholder="••••••••"
+              />
             </div>
             {loginError && <p className="text-rose-400 text-[10px] font-bold px-1">{loginError}</p>}
             <button type="submit" className="w-full glass-btn glass-btn-primary py-4 mt-4 font-bold tracking-widest uppercase text-xs">
-               Access Demo Portal
+               Login to Portal
             </button>
           </form>
 
@@ -1027,6 +1035,76 @@ export default function App() {
             </motion.div>
           )}
 
+          {activeTab === 'messages' && (
+            <motion.div
+              key="messages"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]"
+            >
+              <div className="lg:col-span-1 glass-card overflow-y-auto">
+                <h3 className="text-sm font-bold mb-4 uppercase tracking-wider text-white/50">Conversations</h3>
+                <div className="space-y-2">
+                  {user.role !== 'user' ? (
+                    members.map(m => (
+                      <button
+                        key={m.id}
+                        className="w-full text-left p-4 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/5"
+                        onClick={() => {
+                          const userObj = { id: m.id + 1000, name: m.name }; // Mocking user ID mapping
+                          // In real app, we fetch user by member_id
+                        }}
+                      >
+                        <div className="font-bold">{m.name}</div>
+                        <div className="text-[10px] text-white/30">{m.chit_name}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <button className="w-full text-left p-4 rounded-xl bg-white/10 border border-white/10">
+                      <div className="font-bold">System Admin</div>
+                      <div className="text-[10px] text-accent">Support Channel</div>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="lg:col-span-2 glass-card flex flex-col">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${msg.sender_id === user.id ? 'bg-accent text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none'}`}>
+                        {msg.content}
+                        <div className="text-[9px] opacity-50 mt-1 text-right">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {messages.length === 0 && (
+                    <div className="h-full flex items-center justify-center text-white/20 italic text-sm">
+                      No messages yet. Start the conversation!
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 border-t border-white/5">
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const target = e.target as any;
+                      const content = target.message.value;
+                      if (!content) return;
+                      // Logic to determine receiver_id
+                      const receiverId = user.role === 'user' ? 1 : 3; // Hardcoded demo logic: user sends to admin(1), admin sends to demo user(3)
+                      sendMessage(receiverId, content);
+                      target.message.value = '';
+                    }}
+                  >
+                    <input name="message" placeholder="Type your message..." className="flex-1 glass-input" />
+                    <button type="submit" className="glass-btn glass-btn-primary px-6">Send</button>
+                  </form>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'notifications' && (
             <motion.div
               key="notifications"
@@ -1039,9 +1117,22 @@ export default function App() {
                 <div className="glass-card">
                   <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-semibold">Notification Center</h3>
-                    <button className="glass-btn glass-btn-primary text-xs flex items-center gap-2">
-                       <Plus size={14} /> Send Custom Broadcast
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          const res = await fetch('/api/reminders/process', { method: 'POST' });
+                          const data = await res.json();
+                          alert(`Processed ${data.processed} overdue reminders.`);
+                          fetchNotifications();
+                        }}
+                        className="glass-btn text-xs border-amber-500/30 text-amber-400"
+                      >
+                         Process Overdue Reminders
+                      </button>
+                      <button className="glass-btn glass-btn-primary text-xs flex items-center gap-2">
+                         <Plus size={14} /> Send Custom Broadcast
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="space-y-4">
@@ -1301,6 +1392,17 @@ export default function App() {
 
                 <form onSubmit={handlePaymentSubmit} className="space-y-4">
                   <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Payment Status</label>
+                    <select
+                      value={newPayment.status}
+                      onChange={e => setNewPayment({...newPayment, status: e.target.value})}
+                      className="glass-input w-full bg-[#1a1a2e]"
+                    >
+                      <option value="paid" className="bg-[#1a1a2e]">Paid</option>
+                      <option value="unpaid" className="bg-[#1a1a2e]">Unpaid / Scheduled</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] uppercase font-bold text-white/50 px-1">Select Member</label>
                     <select 
                       required
@@ -1342,15 +1444,27 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Payment Date</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={newPayment.payment_date}
-                      onChange={e => setNewPayment({...newPayment, payment_date: e.target.value})}
-                      className="glass-input w-full"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Payment Date</label>
+                      <input
+                        type="date"
+                        required={newPayment.status === 'paid'}
+                        value={newPayment.payment_date}
+                        onChange={e => setNewPayment({...newPayment, payment_date: e.target.value})}
+                        className="glass-input w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Due Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={newPayment.due_date}
+                        onChange={e => setNewPayment({...newPayment, due_date: e.target.value})}
+                        className="glass-input w-full"
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-4 flex gap-3">
