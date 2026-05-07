@@ -89,6 +89,7 @@ async function startServer() {
     db.run(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      username TEXT UNIQUE,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
@@ -110,8 +111,8 @@ async function startServer() {
     // Seed Admin
     db.get("SELECT * FROM users WHERE email = 'admin@chitapp'", (err, row) => {
       if (!row) {
-        db.run("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-          ['Administrator', 'admin@chitapp', 'admin123', 'master_admin']);
+        db.run("INSERT INTO users (name, username, email, password, role) VALUES (?, ?, ?, ?, ?)",
+          ['Administrator', 'admin', 'admin@chitapp', 'admin123', 'master_admin']);
       }
     });
 
@@ -119,8 +120,8 @@ async function startServer() {
 
   // API Routes
   app.post("/api/login", (req, res) => {
-    const { email, password } = req.body;
-    db.get("SELECT * FROM users WHERE email = ? AND password = ?", [email, password], (err, row) => {
+    const { email, password } = req.body; // 'email' field in body can contain username or email
+    db.get("SELECT * FROM users WHERE (email = ? OR username = ?) AND password = ?", [email, email, password], (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
       if (row) {
         res.json(row);
@@ -263,10 +264,11 @@ async function startServer() {
         }
 
         const memberId = this.lastID;
+        const username = name.split(' ')[0].toLowerCase() + memberId;
         const password = name.split(' ')[0].toLowerCase() + (phone ? phone.slice(-4) : '1234');
 
-        db.run(`INSERT INTO users (name, email, password, role, member_id) VALUES (?, ?, ?, ?, ?)`,
-          [name, email, password, 'user', memberId], function(err2) {
+        db.run(`INSERT INTO users (name, username, email, password, role, member_id) VALUES (?, ?, ?, ?, ?, ?)`,
+          [name, username, email, password, 'user', memberId], function(err2) {
           if (err2) {
             db.run("ROLLBACK");
             return res.status(500).json({ error: err2.message });
