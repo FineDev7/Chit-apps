@@ -66,21 +66,6 @@ const StatCard = ({ label, value, sub, color, icon: Icon }: any) => (
   </div>
 );
 
-const cashFlowData = [
-  { name: 'Oct', collected: 312000, paid: 142000 },
-  { name: 'Nov', collected: 318000, paid: 130000 },
-  { name: 'Dec', collected: 330000, paid: 148000 },
-  { name: 'Jan', collected: 380000, paid: 155000 },
-  { name: 'Feb', collected: 405000, paid: 140000 },
-  { name: 'Mar', collected: 438000, paid: 159500 },
-  { name: 'Apr', collected: 438000, paid: 0 },
-];
-
-const paymentStatusData = [
-  { name: 'Paid', value: 61, color: '#34d399' },
-  { name: 'Late', value: 8, color: '#fbbf24' },
-  { name: 'Unpaid', value: 4, color: '#f87171' },
-];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -131,8 +116,63 @@ export default function App() {
     chits, fetchChits, addChit,
     members, fetchMembers, addMember,
     payments, fetchPayments, addPayment,
-    auctions, fetchAuctions, addAuction
+    auctions, fetchAuctions, addAuction,
+    notifications, fetchNotifications
   } = useStore();
+
+  // Compute charts data from actual store state
+  const cashFlowData = React.useMemo(() => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+
+    return months.map((month, index) => {
+      const monthNum = index + 1;
+      const collected = payments
+        .filter(p => p.month === monthNum && p.year === currentYear && p.status === 'paid')
+        .reduce((sum, p) => sum + p.amount, 0);
+      const paid = auctions
+        .filter(a => {
+          const date = new Date(a.auction_date);
+          return date.getMonth() === index && date.getFullYear() === currentYear;
+        })
+        .reduce((sum, a) => sum + a.payout, 0);
+
+      return { name: month, collected, paid };
+    });
+  }, [payments, auctions]);
+
+  const paymentStatusData = React.useMemo(() => {
+    const paid = payments.filter(p => p.status === 'paid').length;
+    const unpaid = payments.filter(p => p.status === 'unpaid').length;
+    const late = payments.filter(p => p.status === 'late').length;
+
+    return [
+      { name: 'Paid', value: paid, color: '#34d399' },
+      { name: 'Late', value: late, color: '#fbbf24' },
+      { name: 'Unpaid', value: unpaid, color: '#f87171' },
+    ].filter(d => d.value > 0);
+  }, [payments]);
+
+  const paymentStats = React.useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    const monthlyPayments = payments.filter(p => p.month === currentMonth && p.year === currentYear);
+    const paidCount = monthlyPayments.filter(p => p.status === 'paid').length;
+    const paidAmount = monthlyPayments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+
+    const unpaidCount = monthlyPayments.filter(p => p.status === 'unpaid').length;
+    const unpaidAmount = monthlyPayments.filter(p => p.status === 'unpaid').reduce((sum, p) => sum + p.amount, 0);
+
+    return {
+      paidCount,
+      paidAmount,
+      unpaidCount,
+      unpaidAmount,
+      totalCount: members.length
+    };
+  }, [payments, members]);
 
   useEffect(() => {
     fetchDashboard();
@@ -140,6 +180,7 @@ export default function App() {
     fetchMembers();
     fetchPayments();
     fetchAuctions();
+    fetchNotifications();
   }, []);
 
   const exportToCSV = (data: any[], fileName: string) => {
@@ -320,10 +361,10 @@ export default function App() {
             >
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-                <StatCard label="Total Pot Value" value={`₹${stats.totalCollected.toLocaleString()}`} sub="25 Active Members" color="accent" icon={Wallet} />
-                <StatCard label="Collected This Month" value={`₹${stats.discountAccumulated.toLocaleString()}`} sub="↑ 14% from last month" color="success" icon={ArrowUpRight} />
-                <StatCard label="Pending Dues" value={`₹${stats.potBalance.toLocaleString()}`} sub="5 Members Overdue" color="danger" icon={FolderKanban} />
-                <StatCard label="Discount Pool" value={stats.totalMembers} sub="Cumulative Accumulation" color="warning" icon={Users} />
+                <StatCard label="Total Collected" value={`₹${stats.totalCollected.toLocaleString()}`} sub="Current Cash" color="accent" icon={Wallet} />
+                <StatCard label="Discount Pool" value={`₹${stats.discountAccumulated.toLocaleString()}`} sub="Shared Benefit" color="success" icon={ArrowUpRight} />
+                <StatCard label="Pot Balance" value={`₹${stats.potBalance.toLocaleString()}`} sub="Remaining Value" color="danger" icon={FolderKanban} />
+                <StatCard label="Total Members" value={stats.totalMembers} sub="Active Participants" color="warning" icon={Users} />
                 <StatCard label="Defaulter Watch" value={stats.defaulters} sub="Needs Attention" color="rose" icon={AlertCircle} />
               </div>
 
@@ -381,7 +422,7 @@ export default function App() {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-2xl font-bold">73</span>
+                      <span className="text-2xl font-bold">{payments.length}</span>
                       <span className="text-[10px] text-slate-500 uppercase">Total</span>
                     </div>
                   </div>
@@ -406,10 +447,24 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { name: 'Mohit Malhotra', chit: 'Alpha', months: 2, amount: 12000, initial: 'MM', risk: 'Critical' },
-                          { name: 'Priya Reddy', chit: 'Beta', months: 1, amount: 6000, initial: 'PR', risk: 'Moderate' },
-                        ].map((def, i) => (
+                        {members
+                          .filter(m => {
+                            const unpaidCount = payments.filter(p => p.member_id === m.id && p.status === 'unpaid').length;
+                            return unpaidCount > 0;
+                          })
+                          .map((m) => {
+                            const unpaidPayments = payments.filter(p => p.member_id === m.id && p.status === 'unpaid');
+                            const totalDues = unpaidPayments.reduce((sum, p) => sum + p.amount, 0);
+                            const risk = unpaidPayments.length > 1 ? 'Critical' : 'Moderate';
+                            return {
+                              name: m.name,
+                              amount: totalDues,
+                              months: unpaidPayments.length,
+                              risk,
+                              initial: m.name.split(' ').map(n => n[0]).join('')
+                            };
+                          })
+                          .map((def, i) => (
                           <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                             <td className="py-4 px-2 flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold">{def.initial}</div>
@@ -432,21 +487,21 @@ export default function App() {
                 <div className="glass-card">
                   <h3 className="text-sm font-semibold mb-6">Recent Auctions</h3>
                   <div className="flex flex-col gap-4">
-                    {[
-                      { name: 'Rajesh Kumar', info: 'Month 4 Auction', amount: 112000, status: 'Paid' },
-                      { name: 'Ananya Sharma', info: 'Month 3 Auction', amount: 125500, status: 'Paid' },
-                    ].map((auc, i) => (
+                    {auctions.slice(0, 5).map((auc, i) => (
                       <div key={i} className="flex justify-between items-center border-b border-white/5 pb-4 last:border-0 last:pb-0">
                         <div>
-                          <div className="text-sm">{auc.name}</div>
-                          <div className="text-[10px] opacity-50 uppercase font-semibold">{auc.info}</div>
+                          <div className="text-sm">{auc.winner_name}</div>
+                          <div className="text-[10px] opacity-50 uppercase font-semibold">{auc.chit_name} • Month {auc.month}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-bold">₹{auc.amount.toLocaleString()}</div>
-                          <div className="pill pill-green mt-1">{auc.status}</div>
+                          <div className="text-sm font-bold">₹{auc.payout.toLocaleString()}</div>
+                          <div className="pill pill-green mt-1">Paid</div>
                         </div>
                       </div>
                     ))}
+                    {auctions.length === 0 && (
+                      <div className="text-center py-4 text-white/30 italic text-xs">No recent auctions.</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -614,17 +669,17 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <div className="glass-card flex flex-col gap-1">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">This Month</span>
-                  <div className="text-xl font-bold text-emerald-400">₹4,38,000</div>
-                  <span className="text-[10px] text-slate-500">61 of 73 members</span>
+                  <div className="text-xl font-bold text-emerald-400">₹{paymentStats.paidAmount.toLocaleString()}</div>
+                  <span className="text-[10px] text-slate-500">{paymentStats.paidCount} of {paymentStats.totalCount} members</span>
                 </div>
                 <div className="glass-card flex flex-col gap-1">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">Pending</span>
-                  <div className="text-xl font-bold text-amber-400">₹72,000</div>
-                  <span className="text-[10px] text-slate-500">12 members</span>
+                  <div className="text-xl font-bold text-amber-400">₹{paymentStats.unpaidAmount.toLocaleString()}</div>
+                  <span className="text-[10px] text-slate-500">{paymentStats.unpaidCount} members</span>
                 </div>
                 <div className="glass-card flex flex-col gap-1">
                   <span className="text-[10px] text-slate-400 uppercase font-bold">Defaulters</span>
-                  <div className="text-xl font-bold text-rose-400">04</div>
+                  <div className="text-xl font-bold text-rose-400">{stats.defaulters}</div>
                   <span className="text-[10px] text-slate-500">Action Required</span>
                 </div>
                 <div className="glass-card flex flex-col items-center justify-center border-accent/30">
@@ -640,7 +695,7 @@ export default function App() {
 
               <div className="glass-card">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-sm font-semibold">Payment History — April 2026</h3>
+                  <h3 className="text-sm font-semibold">Payment History — {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
                   <div className="flex gap-2">
                     <button 
                       onClick={() => exportToCSV(payments.map(p => ({ Date: p.payment_date, Member: p.member_name, Method: p.method, Amount: p.amount, Status: p.status })), 'payments_export')}
@@ -727,11 +782,7 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-4">
-                     {[
-                       { time: '10:02 AM', type: 'Payment Reminder', count: 73, channel: 'WhatsApp', status: 'Delivered' },
-                       { time: '09:00 AM', type: 'Defaulter Alert', count: 4, channel: 'Email', status: 'Failed (1)' },
-                       { time: 'Yesterday', type: 'Auction Result', count: 25, channel: 'WhatsApp', status: 'Delivered' },
-                     ].map((log, i) => (
+                     {notifications.map((log, i) => (
                        <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
                          <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-indigo-400">
@@ -739,14 +790,17 @@ export default function App() {
                            </div>
                            <div>
                              <div className="text-sm font-semibold">{log.type}</div>
-                             <div className="text-[10px] text-slate-500 uppercase tracking-tight">{log.time} • To {log.count} recipients via {log.channel}</div>
+                             <div className="text-[10px] text-slate-500 uppercase tracking-tight">{new Date(log.timestamp).toLocaleString()} • To {log.member_name} via {log.channel}</div>
                            </div>
                          </div>
-                         <span className={`pill ${log.status.includes('Failed') ? 'pill-red' : 'pill-green'}`}>
+                         <span className={`pill ${log.status === 'Failed' ? 'pill-red' : 'pill-green'}`}>
                            {log.status}
                          </span>
                        </div>
                      ))}
+                     {notifications.length === 0 && (
+                       <div className="text-center py-10 text-white/30 italic text-xs">No notifications sent yet.</div>
+                     )}
                   </div>
                 </div>
 
@@ -836,14 +890,14 @@ export default function App() {
                     <h3 className="text-sm font-semibold mb-4">Predictive Business Metrics</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Projected May Cash</div>
-                         <div className="text-xl font-bold text-emerald-400">₹4.5L</div>
-                         <div className="text-[9px] text-slate-600">+2.7% expected</div>
+                       <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Total Payouts</div>
+                       <div className="text-xl font-bold text-emerald-400">₹{auctions.reduce((sum, a) => sum + a.payout, 0).toLocaleString()}</div>
+                       <div className="text-[9px] text-slate-600">Actual disbursed</div>
                       </div>
                       <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
-                         <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Double Auction Risk</div>
-                         <div className="text-xl font-bold text-amber-400">Gamma</div>
-                         <div className="text-[9px] text-slate-600">Expected Jun 2026</div>
+                       <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Active Chits</div>
+                       <div className="text-xl font-bold text-amber-400">{chits.length}</div>
+                       <div className="text-[9px] text-slate-600">Managed funds</div>
                       </div>
                     </div>
                   </div>
@@ -901,13 +955,13 @@ export default function App() {
                       <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                          <div className="text-[10px] text-slate-500 uppercase font-bold mb-3">Formula Baseline</div>
                          <div className="text-xs font-mono text-indigo-300">payout = pot - bid - commission</div>
-                         <div className="mt-4 text-[10px] text-slate-500">Last updated: 4 hrs ago</div>
+                         <div className="mt-4 text-[10px] text-slate-500">System engine live</div>
                       </div>
                       <div className="md:col-span-2 p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-center">
                          <div className="text-center">
                             <Gavel size={32} className="mx-auto mb-2 text-indigo-400" />
-                            <div className="text-sm font-semibold">Chit Alpha Auction — Apr 28</div>
-                            <div className="text-[10px] text-slate-500">Wait for participants to submit bids</div>
+                            <div className="text-sm font-semibold">Auction Engine Ready</div>
+                            <div className="text-[10px] text-slate-500">Select a chit to record live auction results</div>
                          </div>
                       </div>
                    </div>

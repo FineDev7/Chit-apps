@@ -70,6 +70,28 @@ ChitAdmin Pro is a sophisticated, admin-only management platform designed for mo
    ```
    The app will be available at `http://localhost:3000`.
 
+## 🚢 Deployment
+
+### Platform Recommendations
+
+- **Render / Railway**: Excellent for full-stack Node.js + SQLite apps.
+- **VPS (DigitalOcean / Linode)**: Best for performance and persistent storage control.
+
+### Deployment Steps (Generic)
+
+1. **Build the frontend**:
+   ```bash
+   npm run build
+   ```
+2. **Start the production server**:
+   ```bash
+   NODE_ENV=production node server.ts
+   ```
+   *Note: In production, the server serves the static files from the `dist` directory.*
+
+### Persistent Storage
+Since this app uses SQLite, ensure your deployment platform supports persistent disks (e.g., Railway Volumes or Render Persistent Disk). Otherwise, your database will be reset on every redeploy.
+
 ## 📸 Screenshots
 
 | Dashboard | Analytics |

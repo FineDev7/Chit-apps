@@ -56,18 +56,30 @@ interface Auction {
   auction_date: string;
 }
 
+interface Notification {
+  id: number;
+  member_id: number;
+  member_name: string;
+  type: string;
+  channel: string;
+  status: string;
+  timestamp: string;
+}
+
 interface AppState {
   stats: DashboardStats;
   chits: Chit[];
   members: Member[];
   payments: Payment[];
   auctions: Auction[];
+  notifications: Notification[];
   loading: boolean;
   fetchDashboard: () => Promise<void>;
   fetchChits: () => Promise<void>;
   fetchMembers: () => Promise<void>;
   fetchPayments: () => Promise<void>;
   fetchAuctions: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
   addPayment: (payment: any) => Promise<void>;
   addMember: (member: any) => Promise<void>;
   addChit: (chit: any) => Promise<void>;
@@ -86,6 +98,7 @@ export const useStore = create<AppState>((set, get) => ({
   members: [],
   payments: [],
   auctions: [],
+  notifications: [],
   loading: false,
   fetchDashboard: async () => {
     set({ loading: true });
@@ -116,6 +129,11 @@ export const useStore = create<AppState>((set, get) => ({
     const res = await fetch('/api/auctions');
     const data = await res.json();
     set({ auctions: data });
+  },
+  fetchNotifications: async () => {
+    const res = await fetch('/api/notifications');
+    const data = await res.json();
+    set({ notifications: data });
   },
   addPayment: async (payment) => {
     set({ loading: true });
