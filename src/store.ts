@@ -66,7 +66,17 @@ interface Notification {
   timestamp: string;
 }
 
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'master_admin' | 'user';
+  member_id?: number;
+  admin_requested?: number;
+}
+
 interface AppState {
+  user: User | null;
   stats: DashboardStats;
   chits: Chit[];
   members: Member[];
@@ -74,6 +84,8 @@ interface AppState {
   auctions: Auction[];
   notifications: Notification[];
   loading: boolean;
+  login: (email: string) => Promise<boolean>;
+  logout: () => void;
   fetchDashboard: () => Promise<void>;
   fetchChits: () => Promise<void>;
   fetchMembers: () => Promise<void>;
@@ -84,9 +96,12 @@ interface AppState {
   addMember: (member: any) => Promise<void>;
   addChit: (chit: any) => Promise<void>;
   addAuction: (auction: any) => Promise<void>;
+  requestAdmin: () => Promise<void>;
+  updateUserRole: (email: string, role: string) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  user: null,
   stats: {
     totalCollected: 0,
     discountAccumulated: 0,
@@ -100,6 +115,37 @@ export const useStore = create<AppState>((set, get) => ({
   auctions: [],
   notifications: [],
   loading: false,
+  login: async (email) => {
+    // Demo credentials logic
+    const demoUsers: User[] = [
+      { id: 1, name: 'Master Admin', email: 'master@demo.com', role: 'master_admin' },
+      { id: 2, name: 'Chit Manager', email: 'admin@demo.com', role: 'admin' },
+      { id: 3, name: 'John Doe', email: 'user@demo.com', role: 'user', member_id: 1 }
+    ];
+    const user = demoUsers.find(u => u.email === email);
+    if (user) {
+      set({ user });
+      return true;
+    }
+    return false;
+  },
+  logout: () => set({ user: null }),
+  requestAdmin: async () => {
+    const { user } = get();
+    if (!user) return;
+    await fetch('/api/users/request-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email })
+    });
+  },
+  updateUserRole: async (email, role) => {
+    await fetch('/api/users/update-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, role })
+    });
+  },
   fetchDashboard: async () => {
     set({ loading: true });
     try {

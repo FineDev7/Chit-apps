@@ -92,6 +92,8 @@ ChitAdmin Pro is a sophisticated, admin-only management platform designed for mo
 ### Persistent Storage
 Since this app uses SQLite, ensure your deployment platform supports persistent disks (e.g., Railway Volumes or Render Persistent Disk). Otherwise, your database will be reset on every redeploy.
 
+> **⚠️ Note for Vercel Users:** Vercel is a stateless platform. The SQLite database (`chit_fund.db`) will be reset every time the serverless function restarts. For production, please use a stateful provider or connect to an external PostgreSQL/MySQL database.
+
 ## 📸 Screenshots
 
 | Dashboard | Analytics |

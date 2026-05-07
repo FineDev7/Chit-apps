@@ -84,6 +84,17 @@ async function startServer() {
       FOREIGN KEY(member_id) REFERENCES members(id)
     )`);
 
+    // Users & Roles Table
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      role TEXT DEFAULT 'user',
+      member_id INTEGER,
+      admin_requested INTEGER DEFAULT 0,
+      FOREIGN KEY(member_id) REFERENCES members(id)
+    )`);
+
   });
 
   // API Routes
@@ -149,6 +160,28 @@ async function startServer() {
             FROM members m 
             LEFT JOIN chits c ON m.chit_id = c.id`, (err, rows) => {
       res.json(rows);
+    });
+  });
+
+  app.get("/api/users", (req, res) => {
+    db.all(`SELECT * FROM users`, (err, rows) => {
+      res.json(rows);
+    });
+  });
+
+  app.post("/api/users/request-admin", (req, res) => {
+    const { email } = req.body;
+    db.run(`UPDATE users SET admin_requested = 1 WHERE email = ?`, [email], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  });
+
+  app.post("/api/users/update-role", (req, res) => {
+    const { email, role } = req.body;
+    db.run(`UPDATE users SET role = ?, admin_requested = 0 WHERE email = ?`, [role, email], function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
     });
   });
 
