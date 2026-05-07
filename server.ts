@@ -84,35 +84,36 @@ async function startServer() {
       FOREIGN KEY(member_id) REFERENCES members(id)
     )`);
 
-    // Seed mock data if empty
-    db.get("SELECT COUNT(*) as count FROM chits", (err, row: any) => {
-      if (row.count === 0) {
-        db.run(`INSERT INTO chits (name, members_count, duration, monthly_contribution, total_pot, start_date) 
-                VALUES ('Chit Alpha', 25, 25, 6000, 150000, '2026-01-01')`);
-      }
-    });
   });
 
   // API Routes
   app.get("/api/dashboard", (req, res) => {
     // Aggregated stats
     const queries = [
-      "SELECT SUM(amount) as total FROM payments",
+      "SELECT SUM(amount) as total FROM payments WHERE status = 'paid'",
       "SELECT SUM(bid_discount) as total FROM auctions",
       "SELECT COUNT(*) as count FROM members",
-      "SELECT COUNT(DISTINCT member_id) as count FROM payments WHERE status = 'unpaid'"
+      "SELECT COUNT(DISTINCT member_id) as count FROM payments WHERE status = 'unpaid'",
+      "SELECT SUM(total_pot) as total FROM chits",
+      "SELECT SUM(payout) as total FROM auctions"
     ];
 
     db.get(queries[0], (err, row1: any) => {
       db.get(queries[1], (err, row2: any) => {
         db.get(queries[2], (err, row3: any) => {
           db.get(queries[3], (err, row4: any) => {
-            res.json({
-              totalCollected: row1?.total || 1860000,
-              discountAccumulated: row2?.total || 245000,
-              potBalance: 1575000, // This would be calculated based on chits total pot - paid auctions
-              totalMembers: row3?.count || 73,
-              defaulters: row4?.count || 4
+            db.get(queries[4], (err, row5: any) => {
+              db.get(queries[5], (err, row6: any) => {
+                const totalPot = row5?.total || 0;
+                const totalPaidOut = row6?.total || 0;
+                res.json({
+                  totalCollected: row1?.total || 0,
+                  discountAccumulated: row2?.total || 0,
+                  potBalance: totalPot - totalPaidOut,
+                  totalMembers: row3?.count || 0,
+                  defaulters: row4?.count || 0
+                });
+              });
             });
           });
         });
@@ -175,6 +176,17 @@ async function startServer() {
             VALUES (?, ?, ?, ?, ?, ?, ?)`, [member_id, month, year, amount, method, status, payment_date], function(err) {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ id: this.lastID });
+    });
+  });
+
+  app.get("/api/auctions", (req, res) => {
+    db.all(`SELECT a.*, m.name as winner_name, c.name as chit_name
+            FROM auctions a
+            JOIN members m ON a.winner_id = m.id
+            JOIN chits c ON a.chit_id = c.id
+            ORDER BY auction_date DESC`, (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
     });
   });
 

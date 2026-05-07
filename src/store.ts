@@ -44,17 +44,46 @@ interface Payment {
   payment_date: string;
 }
 
+interface Auction {
+  id: number;
+  chit_id: number;
+  chit_name: string;
+  month: number;
+  winner_id: number;
+  winner_name: string;
+  bid_discount: number;
+  payout: number;
+  auction_date: string;
+}
+
+interface Notification {
+  id: number;
+  member_id: number;
+  member_name: string;
+  type: string;
+  channel: string;
+  status: string;
+  timestamp: string;
+}
+
 interface AppState {
   stats: DashboardStats;
   chits: Chit[];
   members: Member[];
   payments: Payment[];
+  auctions: Auction[];
+  notifications: Notification[];
   loading: boolean;
   fetchDashboard: () => Promise<void>;
   fetchChits: () => Promise<void>;
   fetchMembers: () => Promise<void>;
   fetchPayments: () => Promise<void>;
+  fetchAuctions: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
   addPayment: (payment: any) => Promise<void>;
+  addMember: (member: any) => Promise<void>;
+  addChit: (chit: any) => Promise<void>;
+  addAuction: (auction: any) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -68,6 +97,8 @@ export const useStore = create<AppState>((set, get) => ({
   chits: [],
   members: [],
   payments: [],
+  auctions: [],
+  notifications: [],
   loading: false,
   fetchDashboard: async () => {
     set({ loading: true });
@@ -94,6 +125,16 @@ export const useStore = create<AppState>((set, get) => ({
     const data = await res.json();
     set({ payments: data });
   },
+  fetchAuctions: async () => {
+    const res = await fetch('/api/auctions');
+    const data = await res.json();
+    set({ auctions: data });
+  },
+  fetchNotifications: async () => {
+    const res = await fetch('/api/notifications');
+    const data = await res.json();
+    set({ notifications: data });
+  },
   addPayment: async (payment) => {
     set({ loading: true });
     try {
@@ -103,6 +144,48 @@ export const useStore = create<AppState>((set, get) => ({
         body: JSON.stringify(payment)
       });
       await get().fetchPayments();
+      await get().fetchDashboard();
+    } finally {
+      set({ loading: false });
+    }
+  },
+  addMember: async (member) => {
+    set({ loading: true });
+    try {
+      await fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(member)
+      });
+      await get().fetchMembers();
+      await get().fetchDashboard();
+    } finally {
+      set({ loading: false });
+    }
+  },
+  addChit: async (chit) => {
+    set({ loading: true });
+    try {
+      await fetch('/api/chits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chit)
+      });
+      await get().fetchChits();
+      await get().fetchDashboard();
+    } finally {
+      set({ loading: false });
+    }
+  },
+  addAuction: async (auction) => {
+    set({ loading: true });
+    try {
+      await fetch('/api/auctions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(auction)
+      });
+      await get().fetchAuctions();
       await get().fetchDashboard();
     } finally {
       set({ loading: false });
