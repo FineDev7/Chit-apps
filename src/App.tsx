@@ -84,7 +84,12 @@ const paymentStatusData = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showChitModal, setShowChitModal] = useState(false);
+  const [showAuctionModal, setShowAuctionModal] = useState(false);
+
   const [newPayment, setNewPayment] = useState({
     member_id: '',
     amount: '',
@@ -95,13 +100,46 @@ export default function App() {
     status: 'paid'
   });
 
-  const { stats, fetchDashboard, chits, fetchChits, members, fetchMembers, payments, fetchPayments, addPayment } = useStore();
+  const [newMember, setNewMember] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    chit_id: '',
+    pref_channel: 'whatsapp'
+  });
+
+  const [newChit, setNewChit] = useState({
+    name: '',
+    members_count: '25',
+    duration: '25',
+    monthly_contribution: '',
+    total_pot: '',
+    start_date: new Date().toISOString().split('T')[0]
+  });
+
+  const [newAuction, setNewAuction] = useState({
+    chit_id: '',
+    month: '1',
+    winner_id: '',
+    bid_discount: '',
+    payout: '',
+    auction_date: new Date().toISOString().split('T')[0]
+  });
+
+  const {
+    stats, fetchDashboard,
+    chits, fetchChits, addChit,
+    members, fetchMembers, addMember,
+    payments, fetchPayments, addPayment,
+    auctions, fetchAuctions, addAuction
+  } = useStore();
 
   useEffect(() => {
     fetchDashboard();
     fetchChits();
     fetchMembers();
     fetchPayments();
+    fetchAuctions();
   }, []);
 
   const exportToCSV = (data: any[], fileName: string) => {
@@ -152,6 +190,57 @@ export default function App() {
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       status: 'paid'
+    });
+  };
+
+  const handleMemberSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await addMember({
+      ...newMember,
+      chit_id: newMember.chit_id ? parseInt(newMember.chit_id) : null
+    });
+    setShowMemberModal(false);
+    setNewMember({ name: '', phone: '', email: '', chit_id: '', pref_channel: 'whatsapp' });
+  };
+
+  const handleChitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await addChit({
+      ...newChit,
+      members_count: parseInt(newChit.members_count),
+      duration: parseInt(newChit.duration),
+      monthly_contribution: parseFloat(newChit.monthly_contribution),
+      total_pot: parseFloat(newChit.total_pot)
+    });
+    setShowChitModal(false);
+    setNewChit({
+      name: '',
+      members_count: '25',
+      duration: '25',
+      monthly_contribution: '',
+      total_pot: '',
+      start_date: new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const handleAuctionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await addAuction({
+      ...newAuction,
+      chit_id: parseInt(newAuction.chit_id),
+      winner_id: parseInt(newAuction.winner_id),
+      month: parseInt(newAuction.month),
+      bid_discount: parseFloat(newAuction.bid_discount),
+      payout: parseFloat(newAuction.payout)
+    });
+    setShowAuctionModal(false);
+    setNewAuction({
+      chit_id: '',
+      month: '1',
+      winner_id: '',
+      bid_discount: '',
+      payout: '',
+      auction_date: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -207,7 +296,13 @@ export default function App() {
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={14} />
-              <input type="text" placeholder="Quick search..." className="glass-input pl-10 w-64 h-10 border-white/10" />
+              <input
+                type="text"
+                placeholder="Quick search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="glass-input pl-10 w-64 h-10 border-white/10"
+              />
             </div>
           </div>
         </header>
@@ -361,12 +456,13 @@ export default function App() {
           {activeTab === 'chits' && (
             <motion.div
               key="chits"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {chits.map((chit) => (
+              {chits.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((chit) => (
                 <div key={chit.id} className="glass-card border-l-4 border-l-indigo-500">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -410,7 +506,10 @@ export default function App() {
                 </div>
               ))}
               
-              <button className="glass-card border-2 border-dashed border-white/5 hover:border-white/10 hover:bg-white/5 flex flex-col items-center justify-center gap-4 transition-all group">
+              <button
+                onClick={() => setShowChitModal(true)}
+                className="glass-card border-2 border-dashed border-white/5 hover:border-white/10 hover:bg-white/5 flex flex-col items-center justify-center gap-4 transition-all group"
+              >
                 <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-slate-500 group-hover:scale-110 transition-transform">
                   <Plus size={24} />
                 </div>
@@ -425,9 +524,10 @@ export default function App() {
           {activeTab === 'members' && (
             <motion.div
               key="members"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="flex flex-col gap-6"
             >
               <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5">
@@ -456,7 +556,10 @@ export default function App() {
                   >
                     Export PDF
                   </button>
-                  <button className="glass-btn glass-btn-primary flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMemberModal(true)}
+                    className="glass-btn glass-btn-primary flex items-center gap-2"
+                  >
                     <Plus size={14} /> Add Member
                   </button>
                 </div>
@@ -472,7 +575,11 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {members.map((member) => (
+                    {members.filter(m =>
+                      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      m.phone?.includes(searchQuery) ||
+                      m.email?.toLowerCase().includes(searchQuery.toLowerCase())
+                    ).map((member) => (
                       <tr key={member.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                         <td className="py-4 flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold">
@@ -500,7 +607,8 @@ export default function App() {
               key="payments"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               className="flex flex-col gap-6"
             >
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -567,7 +675,10 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {payments.map((pay) => (
+                      {payments.filter(p =>
+                        p.member_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        p.method.toLowerCase().includes(searchQuery.toLowerCase())
+                      ).map((pay) => (
                         <tr key={pay.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                           <td className="py-3">{pay.payment_date || '-'}</td>
                           <td className="py-3 font-medium">{pay.member_name}</td>
@@ -779,7 +890,12 @@ export default function App() {
                         <h2 className="text-xl font-bold mb-1">Active Auction Monitor</h2>
                         <p className="text-xs text-slate-400 underline decoration-indigo-500/50 underline-offset-4 decoration-2">Auto-calculating payouts based on current bid dynamics</p>
                       </div>
-                      <button className="glass-btn glass-btn-primary animate-pulse">Record Live Auction</button>
+                      <button
+                        onClick={() => setShowAuctionModal(true)}
+                        className="glass-btn glass-btn-primary animate-pulse"
+                      >
+                        Record Live Auction
+                      </button>
                    </div>
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="p-4 bg-white/5 rounded-xl border border-white/5">
@@ -811,15 +927,22 @@ export default function App() {
                            </tr>
                         </thead>
                         <tbody>
-                           <tr>
-                              <td className="py-3">Mar 26</td>
-                              <td className="py-3 font-medium">Priya M.</td>
-                              <td className="py-3">₹18,000</td>
-                              <td className="py-3 text-emerald-400">₹1,32,000</td>
-                              <td className="py-3">
-                                 <CheckCircle2 size={12} className="text-emerald-400" />
-                              </td>
-                           </tr>
+                           {auctions.map((auc) => (
+                             <tr key={auc.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                <td className="py-3">{auc.auction_date}</td>
+                                <td className="py-3 font-medium">{auc.winner_name}</td>
+                                <td className="py-3">₹{auc.bid_discount.toLocaleString()}</td>
+                                <td className="py-3 text-emerald-400">₹{auc.payout.toLocaleString()}</td>
+                                <td className="py-3">
+                                   <CheckCircle2 size={12} className="text-emerald-400" />
+                                </td>
+                             </tr>
+                           ))}
+                           {auctions.length === 0 && (
+                             <tr>
+                               <td colSpan={5} className="py-10 text-center text-white/30 italic">No auctions recorded yet.</td>
+                             </tr>
+                           )}
                         </tbody>
                      </table>
                    </div>
@@ -829,8 +952,9 @@ export default function App() {
         </AnimatePresence>
         </div>
 
-        {/* Record Payment Modal */}
+        {/* Modals */}
         <AnimatePresence>
+          {/* Record Payment Modal */}
           {showPaymentModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div 
@@ -921,6 +1045,142 @@ export default function App() {
                     >
                       Submit Payment
                     </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Add Member Modal */}
+          {showMemberModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowMemberModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="glass-card w-full max-w-md relative z-10 p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">Add New Member</h2>
+                  <button onClick={() => setShowMemberModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleMemberSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Full Name</label>
+                    <input type="text" required value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value})} placeholder="John Doe" className="glass-input w-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Phone</label>
+                      <input type="tel" value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} placeholder="+91 ..." className="glass-input w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Email</label>
+                      <input type="email" value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} placeholder="john@example.com" className="glass-input w-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Assign to Chit (Optional)</label>
+                    <select value={newMember.chit_id} onChange={e => setNewMember({...newMember, chit_id: e.target.value})} className="glass-input w-full bg-[#1a1a2e]">
+                      <option value="">No Chit Assigned</option>
+                      {chits.map(c => <option key={c.id} value={c.id} className="bg-[#1a1a2e]">{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={() => setShowMemberModal(false)} className="flex-1 glass-btn">Cancel</button>
+                    <button type="submit" className="flex-1 glass-btn glass-btn-primary">Add Member</button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Create Chit Modal */}
+          {showChitModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowChitModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="glass-card w-full max-w-lg relative z-10 p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">Create New Chit Fund</h2>
+                  <button onClick={() => setShowChitModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleChitSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Chit Name</label>
+                    <input type="text" required value={newChit.name} onChange={e => setNewChit({...newChit, name: e.target.value})} placeholder="e.g., Diamond Alpha" className="glass-input w-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Duration (Months)</label>
+                      <input type="number" required value={newChit.duration} onChange={e => setNewChit({...newChit, duration: e.target.value})} className="glass-input w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Members Count</label>
+                      <input type="number" required value={newChit.members_count} onChange={e => setNewChit({...newChit, members_count: e.target.value})} className="glass-input w-full" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Monthly Contribution (₹)</label>
+                      <input type="number" required value={newChit.monthly_contribution} onChange={e => setNewChit({...newChit, monthly_contribution: e.target.value})} className="glass-input w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Total Pot Value (₹)</label>
+                      <input type="number" required value={newChit.total_pot} onChange={e => setNewChit({...newChit, total_pot: e.target.value})} className="glass-input w-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Start Date</label>
+                    <input type="date" required value={newChit.start_date} onChange={e => setNewChit({...newChit, start_date: e.target.value})} className="glass-input w-full" />
+                  </div>
+                  <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={() => setShowChitModal(false)} className="flex-1 glass-btn">Cancel</button>
+                    <button type="submit" className="flex-1 glass-btn glass-btn-primary">Create Fund</button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Record Auction Modal */}
+          {showAuctionModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAuctionModal(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="glass-card w-full max-w-md relative z-10 p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">Record Auction</h2>
+                  <button onClick={() => setShowAuctionModal(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleAuctionSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold text-white/50 px-1">Select Chit</label>
+                    <select required value={newAuction.chit_id} onChange={e => setNewAuction({...newAuction, chit_id: e.target.value})} className="glass-input w-full bg-[#1a1a2e]">
+                      <option value="">Select a chit...</option>
+                      {chits.map(c => <option key={c.id} value={c.id} className="bg-[#1a1a2e]">{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Auction Month</label>
+                      <input type="number" required value={newAuction.month} onChange={e => setNewAuction({...newAuction, month: e.target.value})} className="glass-input w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Winner</label>
+                      <select required value={newAuction.winner_id} onChange={e => setNewAuction({...newAuction, winner_id: e.target.value})} className="glass-input w-full bg-[#1a1a2e]">
+                        <option value="">Select winner...</option>
+                        {members.filter(m => !newAuction.chit_id || m.chit_id === parseInt(newAuction.chit_id)).map(m => <option key={m.id} value={m.id} className="bg-[#1a1a2e]">{m.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Bid Discount (₹)</label>
+                      <input type="number" required value={newAuction.bid_discount} onChange={e => setNewAuction({...newAuction, bid_discount: e.target.value})} className="glass-input w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-white/50 px-1">Net Payout (₹)</label>
+                      <input type="number" required value={newAuction.payout} onChange={e => setNewAuction({...newAuction, payout: e.target.value})} className="glass-input w-full" />
+                    </div>
+                  </div>
+                  <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={() => setShowAuctionModal(false)} className="flex-1 glass-btn">Cancel</button>
+                    <button type="submit" className="flex-1 glass-btn glass-btn-primary">Record Auction</button>
                   </div>
                 </form>
               </motion.div>

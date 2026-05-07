@@ -178,6 +178,17 @@ async function startServer() {
     });
   });
 
+  app.get("/api/auctions", (req, res) => {
+    db.all(`SELECT a.*, m.name as winner_name, c.name as chit_name
+            FROM auctions a
+            JOIN members m ON a.winner_id = m.id
+            JOIN chits c ON a.chit_id = c.id
+            ORDER BY auction_date DESC`, (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    });
+  });
+
   app.post("/api/auctions", (req, res) => {
     const { chit_id, month, winner_id, bid_discount, payout, auction_date } = req.body;
     db.run(`INSERT INTO auctions (chit_id, month, winner_id, bid_discount, payout, auction_date) 

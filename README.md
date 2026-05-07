@@ -1,20 +1,88 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="ChitAdmin Pro Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+
+  # 💎 ChitAdmin Pro
+
+  ### *The Ultimate High-Performance Chit Fund Management System*
+
+  [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+  [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react)](https://react.dev/)
+  [![Vite](https://img.shields.io/badge/Vite-6.2-646CFF?logo=vite)](https://vitejs.dev/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+  [![Framer Motion](https://img.shields.io/badge/Framer_Motion-12.0-ff69b4?logo=framer)](https://www.framer.com/motion/)
 </div>
 
-# Run and deploy your AI Studio app
+---
 
-This contains everything you need to run your app locally.
+## ✨ Overview
 
-View your app in AI Studio: https://ai.studio/apps/435584f7-ff2d-4ad1-9b4a-f952d39fd38c
+ChitAdmin Pro is a sophisticated, admin-only management platform designed for modern chit fund operators. Built with a stunning **Glassmorphism UI**, it offers real-time analytics, automated notification tracking, and seamless financial monitoring.
 
-## Run Locally
+## 🚀 Key Features
 
-**Prerequisites:**  Node.js
+- **📊 Real-time Analytics**: Visual insights into cash flow, payment distribution, and discount accumulation trends using Recharts.
+- **🛡️ Defaulter Watch**: Intelligent tracking and risk scoring for overdue members to maintain fund health.
+- **🔨 Smart Auctions**: Automated payout calculations and historical logging of live auction dynamics.
+- **📱 Multi-Channel Notifications**: Integrated engine for WhatsApp, Email, and SMS alerts.
+- **✨ Glassmorphism UI**: A beautiful, immersive interface with smooth animations powered by Framer Motion.
+- **📄 Export Reports**: Generate professional PDF and CSV reports for members, payments, and auctions instantly.
+- **🔍 Quick Search**: Global search functionality across members, chits, and payment records.
 
+## 🛠️ Tech Stack
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS 4
+- **State Management**: Zustand
+- **Animations**: Framer Motion
+- **Backend**: Express, Node.js
+- **Database**: SQLite3
+- **Reporting**: jsPDF, autoTable
+- **Charts**: Recharts
+
+## 📥 Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd chitadmin-pro
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   Create a `.env` file (or copy from `.env.example`) and add your API keys.
+   ```bash
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. **Run the application**
+   ```bash
+   npm run dev
+   ```
+   The app will be available at `http://localhost:3000`.
+
+## 📸 Screenshots
+
+| Dashboard | Analytics |
+| :---: | :---: |
+| ![Dashboard](https://via.placeholder.com/400x225?text=ChitAdmin+Dashboard) | ![Analytics](https://via.placeholder.com/400x225?text=ChitAdmin+Analytics) |
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+<div align="center">
+  <p>Built with ❤️ for Financial Excellence</p>
+  <p>© 2026 ChitAdmin Pro. All rights reserved.</p>
+</div>
