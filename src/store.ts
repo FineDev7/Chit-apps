@@ -66,6 +66,15 @@ interface Notification {
   timestamp: string;
 }
 
+interface Message {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  content: string;
+  timestamp: string;
+  is_read: number;
+}
+
 interface User {
   id: number;
   name: string;
@@ -83,8 +92,9 @@ interface AppState {
   payments: Payment[];
   auctions: Auction[];
   notifications: Notification[];
+  messages: Message[];
   loading: boolean;
-  login: (email: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   fetchDashboard: () => Promise<void>;
   fetchChits: () => Promise<void>;
@@ -92,6 +102,8 @@ interface AppState {
   fetchPayments: () => Promise<void>;
   fetchAuctions: () => Promise<void>;
   fetchNotifications: () => Promise<void>;
+  fetchMessages: () => Promise<void>;
+  sendMessage: (receiverId: number, content: string) => Promise<void>;
   addPayment: (payment: any) => Promise<void>;
   addMember: (member: any) => Promise<void>;
   addChit: (chit: any) => Promise<void>;
@@ -114,18 +126,22 @@ export const useStore = create<AppState>((set, get) => ({
   payments: [],
   auctions: [],
   notifications: [],
+  messages: [],
   loading: false,
-  login: async (email) => {
-    // Demo credentials logic
-    const demoUsers: User[] = [
-      { id: 1, name: 'Master Admin', email: 'master@demo.com', role: 'master_admin' },
-      { id: 2, name: 'Chit Manager', email: 'admin@demo.com', role: 'admin' },
-      { id: 3, name: 'John Doe', email: 'user@demo.com', role: 'user', member_id: 1 }
-    ];
-    const user = demoUsers.find(u => u.email === email);
-    if (user) {
-      set({ user });
-      return true;
+  login: async (email, password) => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (res.ok) {
+        const user = await res.json();
+        set({ user });
+        return true;
+      }
+    } catch (e) {
+      console.error("Login failed", e);
     }
     return false;
   },
@@ -180,6 +196,23 @@ export const useStore = create<AppState>((set, get) => ({
     const res = await fetch('/api/notifications');
     const data = await res.json();
     set({ notifications: data });
+  },
+  fetchMessages: async () => {
+    const { user } = get();
+    if (!user) return;
+    const res = await fetch(`/api/messages?userId=${user.id}`);
+    const data = await res.json();
+    set({ messages: data });
+  },
+  sendMessage: async (receiverId, content) => {
+    const { user } = get();
+    if (!user) return;
+    await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender_id: user.id, receiver_id: receiverId, content })
+    });
+    await get().fetchMessages();
   },
   addPayment: async (payment) => {
     set({ loading: true });

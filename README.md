@@ -89,10 +89,31 @@ ChitAdmin Pro is a sophisticated, admin-only management platform designed for mo
    ```
    *Note: In production, the server serves the static files from the `dist` directory.*
 
-### Persistent Storage
-Since this app uses SQLite, ensure your deployment platform supports persistent disks (e.g., Railway Volumes or Render Persistent Disk). Otherwise, your database will be reset on every redeploy.
+### ⚠️ Persistence & Deployment (Vercel/Render/Railway)
 
-> **⚠️ Note for Vercel Users:** Vercel is a stateless platform. The SQLite database (`chit_fund.db`) will be reset every time the serverless function restarts. For production, please use a stateful provider or connect to an external PostgreSQL/MySQL database.
+Vercel and most serverless platforms are **stateless**. This means the SQLite database (`chit_fund.db`) will be reset on every redeploy or function cold start.
+
+#### To make the database persistent:
+1. **Turso (Recommended):** Turso is a distributed SQLite database.
+   - Replace the `sqlite3` driver in `server.ts` with `@libsql/client`.
+   - Use a Turso DB URL and Auth Token in your environment variables.
+2. **Supabase (PostgreSQL):**
+   - Migrate the schema to Postgres (Supabase provides a free tier).
+   - Use `pg` or `prisma` to connect.
+3. **Railway/Render with Volumes:**
+   - If deploying to Railway or Render, you can attach a **Persistent Volume**.
+   - Mount the volume at `/data` and update your DB path to `/data/chit_fund.db`.
+
+### 🔑 Authentication
+
+#### Default Admin Credentials
+- **Admin Email:** `admin@chitapp`
+- **Admin Password:** `admin123`
+
+#### User Credentials
+When you add a new member, the system automatically generates:
+- **Email:** The email provided during member creation.
+- **Password:** `[firstname] + [last 4 digits of phone]` (e.g., `john1234`).
 
 ## 📸 Screenshots
 
