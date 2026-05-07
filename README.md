@@ -106,14 +106,18 @@ Vercel and most serverless platforms are **stateless**. This means the SQLite da
 
 ### 🔑 Authentication
 
+The system supports login via **Username** or **Email**.
+
 #### Default Admin Credentials
-- **Admin Email:** `admin@chitapp`
-- **Admin Password:** `admin123`
+- **Username:** `admin`
+- **Email:** `admin@chitapp`
+- **Password:** `admin123`
 
 #### User Credentials
 When you add a new member, the system automatically generates:
+- **Username:** `[firstname]` + `[unique_id]` (e.g., `john101`).
 - **Email:** The email provided during member creation.
-- **Password:** `[firstname] + [last 4 digits of phone]` (e.g., `john1234`).
+- **Password:** `[firstname]` + `[last 4 digits of phone]` (e.g., `john1234`).
 
 ## 📸 Screenshots
 

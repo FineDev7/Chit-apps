@@ -93,6 +93,7 @@ interface AppState {
   auctions: Auction[];
   notifications: Notification[];
   messages: Message[];
+  users: User[];
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -108,6 +109,7 @@ interface AppState {
   addMember: (member: any) => Promise<void>;
   addChit: (chit: any) => Promise<void>;
   addAuction: (auction: any) => Promise<void>;
+  fetchUsers: () => Promise<void>;
   requestAdmin: () => Promise<void>;
   updateUserRole: (email: string, role: string) => Promise<void>;
 }
@@ -127,6 +129,7 @@ export const useStore = create<AppState>((set, get) => ({
   auctions: [],
   notifications: [],
   messages: [],
+  users: [],
   loading: false,
   login: async (email, password) => {
     try {
@@ -161,6 +164,7 @@ export const useStore = create<AppState>((set, get) => ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, role })
     });
+    await get().fetchUsers();
   },
   fetchDashboard: async () => {
     set({ loading: true });
@@ -196,6 +200,11 @@ export const useStore = create<AppState>((set, get) => ({
     const res = await fetch('/api/notifications');
     const data = await res.json();
     set({ notifications: data });
+  },
+  fetchUsers: async () => {
+    const res = await fetch('/api/users');
+    const data = await res.json();
+    set({ users: data });
   },
   fetchMessages: async () => {
     const { user } = get();

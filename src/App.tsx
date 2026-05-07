@@ -122,7 +122,8 @@ export default function App() {
     payments, fetchPayments, addPayment,
     auctions, fetchAuctions, addAuction,
     notifications, fetchNotifications,
-    messages, fetchMessages, sendMessage
+    messages, fetchMessages, sendMessage,
+    users: appUsers, fetchUsers
   } = useStore();
 
   // Compute charts data from actual store state
@@ -186,7 +187,10 @@ export default function App() {
     fetchPayments();
     fetchAuctions();
     fetchNotifications();
-    if (user) fetchMessages();
+    if (user) {
+      fetchMessages();
+      if (user.role === 'master_admin') fetchUsers();
+    }
   }, [user]);
 
   const exportToCSV = (data: any[], fileName: string) => {
@@ -293,6 +297,7 @@ export default function App() {
   };
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeChat, setActiveChat] = useState<any>(null);
   const [loginEmail, setLoginEmail] = useState('admin@chitapp');
   const [loginPassword, setLoginPassword] = useState('admin123');
   const [loginError, setLoginError] = useState('');
@@ -304,6 +309,15 @@ export default function App() {
     { id: 'auctions', icon: Gavel, label: 'Auctions' },
     { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'notifications', icon: Bell, label: 'Alerts' }
+  ] : (user?.role === 'master_admin' ? [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'chits', icon: FolderKanban, label: 'Chits' },
+    { id: 'members', icon: Users, label: 'Members' },
+    { id: 'users', icon: CheckCircle2, label: 'Permissions' },
+    { id: 'payments', icon: Wallet, label: 'Payments' },
+    { id: 'auctions', icon: Gavel, label: 'Auctions' },
+    { id: 'messages', icon: MessageSquare, label: 'Messages' },
+    { id: 'notifications', icon: Bell, label: 'Alerts' }
   ] : [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'chits', icon: FolderKanban, label: 'Chits' },
@@ -312,7 +326,7 @@ export default function App() {
     { id: 'auctions', icon: Gavel, label: 'Auctions' },
     { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'notifications', icon: Bell, label: 'Alerts' }
-  ];
+  ]);
 
   if (!user) {
     return (
@@ -340,13 +354,13 @@ export default function App() {
             }}
           >
             <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold text-white/50 px-1">Email Address</label>
+              <label className="text-[10px] uppercase font-bold text-white/50 px-1">Username or Email</label>
               <input
                 type="text"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 className="glass-input w-full bg-[#1a1a2e]"
-                placeholder="email@example.com"
+                placeholder="admin or email@example.com"
               />
             </div>
             <div className="space-y-2">
@@ -1000,10 +1014,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { name: 'John Doe', email: 'user@demo.com', role: 'user', admin_requested: 1 },
-                          { name: 'Sarah M.', email: 'sarah@demo.com', role: 'user', admin_requested: 0 }
-                        ].map((u, i) => (
+                        {appUsers.map((u, i) => (
                           <tr key={i} className="border-b border-white/5 last:border-0">
                             <td className="py-4 px-2">
                                <div className="font-medium">{u.name}</div>
@@ -1014,7 +1025,7 @@ export default function App() {
                                {u.admin_requested ? <span className="text-amber-400 font-bold">PENDING REQUEST</span> : <span className="text-white/20">-</span>}
                             </td>
                             <td className="py-4 px-2 text-right">
-                               {u.admin_requested === 1 && (
+                               {u.role === 'user' && (
                                  <button
                                    onClick={async () => {
                                       await updateUserRole(u.email, 'admin');
@@ -1022,7 +1033,7 @@ export default function App() {
                                    }}
                                    className="glass-btn glass-btn-primary text-[10px] py-1 px-3"
                                  >
-                                   Grant Admin
+                                   {u.admin_requested ? 'Approve Admin' : 'Make Admin'}
                                  </button>
                                )}
                             </td>
@@ -1046,21 +1057,21 @@ export default function App() {
                 <h3 className="text-sm font-bold mb-4 uppercase tracking-wider text-white/50">Conversations</h3>
                 <div className="space-y-2">
                   {user.role !== 'user' ? (
-                    members.map(m => (
+                    appUsers.filter(u => u.id !== user.id).map(u => (
                       <button
-                        key={m.id}
-                        className="w-full text-left p-4 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/5"
-                        onClick={() => {
-                          const userObj = { id: m.id + 1000, name: m.name }; // Mocking user ID mapping
-                          // In real app, we fetch user by member_id
-                        }}
+                        key={u.id}
+                        className={`w-full text-left p-4 rounded-xl transition-all border ${activeChat?.id === u.id ? 'bg-white/15 border-white/20' : 'hover:bg-white/5 border-transparent hover:border-white/5'}`}
+                        onClick={() => setActiveChat(u)}
                       >
-                        <div className="font-bold">{m.name}</div>
-                        <div className="text-[10px] text-white/30">{m.chit_name}</div>
+                        <div className="font-bold">{u.name}</div>
+                        <div className="text-[10px] text-white/30 uppercase tracking-tighter">{u.role}</div>
                       </button>
                     ))
                   ) : (
-                    <button className="w-full text-left p-4 rounded-xl bg-white/10 border border-white/10">
+                    <button
+                      className="w-full text-left p-4 rounded-xl bg-white/10 border border-white/10"
+                      onClick={() => setActiveChat({ id: 1, name: 'System Admin' })}
+                    >
                       <div className="font-bold">System Admin</div>
                       <div className="text-[10px] text-accent">Support Channel</div>
                     </button>
@@ -1068,39 +1079,55 @@ export default function App() {
                 </div>
               </div>
               <div className="lg:col-span-2 glass-card flex flex-col">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${msg.sender_id === user.id ? 'bg-accent text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none'}`}>
-                        {msg.content}
-                        <div className="text-[9px] opacity-50 mt-1 text-right">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </div>
+                {activeChat ? (
+                  <>
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                      <h4 className="font-bold">{activeChat.name}</h4>
+                      <span className="text-[10px] text-white/40">Chat active</span>
                     </div>
-                  ))}
-                  {messages.length === 0 && (
-                    <div className="h-full flex items-center justify-center text-white/20 italic text-sm">
-                      No messages yet. Start the conversation!
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {messages
+                        .filter(msg =>
+                          (msg.sender_id === user.id && msg.receiver_id === activeChat.id) ||
+                          (msg.sender_id === activeChat.id && msg.receiver_id === user.id)
+                        )
+                        .map((msg, i) => (
+                        <div key={i} className={`flex ${msg.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[70%] p-3 rounded-2xl text-sm ${msg.sender_id === user.id ? 'bg-accent text-white rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none'}`}>
+                            {msg.content}
+                            <div className="text-[9px] opacity-50 mt-1 text-right">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {messages.length === 0 && (
+                        <div className="h-full flex items-center justify-center text-white/20 italic text-sm">
+                          Select a conversation to start chatting.
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="p-4 border-t border-white/5">
-                  <form
-                    className="flex gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const target = e.target as any;
-                      const content = target.message.value;
-                      if (!content) return;
-                      // Logic to determine receiver_id
-                      const receiverId = user.role === 'user' ? 1 : 3; // Hardcoded demo logic: user sends to admin(1), admin sends to demo user(3)
-                      sendMessage(receiverId, content);
-                      target.message.value = '';
-                    }}
-                  >
-                    <input name="message" placeholder="Type your message..." className="flex-1 glass-input" />
-                    <button type="submit" className="glass-btn glass-btn-primary px-6">Send</button>
-                  </form>
-                </div>
+                    <div className="p-4 border-t border-white/5">
+                      <form
+                        className="flex gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const target = e.target as any;
+                          const content = target.message.value;
+                          if (!content || !activeChat) return;
+                          sendMessage(activeChat.id, content);
+                          target.message.value = '';
+                        }}
+                      >
+                        <input name="message" placeholder="Type your message..." className="flex-1 glass-input" />
+                        <button type="submit" className="glass-btn glass-btn-primary px-6">Send</button>
+                      </form>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-white/20">
+                     <MessageSquare size={48} className="mb-4 opacity-20" />
+                     <p>Select a contact to view the chat</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
