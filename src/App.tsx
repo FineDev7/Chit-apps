@@ -20,7 +20,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import { useStore } from './store';
 import jsPDF from 'jspdf';
@@ -112,6 +113,7 @@ export default function App() {
   });
 
   const {
+    user, login, logout, requestAdmin, updateUserRole,
     stats, fetchDashboard,
     chits, fetchChits, addChit,
     members, fetchMembers, addMember,
@@ -285,22 +287,92 @@ export default function App() {
     });
   };
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('master@demo.com');
+  const [loginError, setLoginError] = useState('');
+
+  const navigation = user?.role === 'user' ? [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
+    { id: 'chits', icon: FolderKanban, label: 'My Chits' },
+    { id: 'payments', icon: Wallet, label: 'My Payments' },
+    { id: 'auctions', icon: Gavel, label: 'Auctions' },
+    { id: 'notifications', icon: Bell, label: 'Alerts' }
+  ] : (user?.role === 'master_admin' ? [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'chits', icon: FolderKanban, label: 'Chits' },
+    { id: 'members', icon: Users, label: 'Members' },
+    { id: 'users', icon: CheckCircle2, label: 'Permissions' },
+    { id: 'payments', icon: Wallet, label: 'Payments' },
+    { id: 'auctions', icon: Gavel, label: 'Auctions' }
+  ] : [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'chits', icon: FolderKanban, label: 'Chits' },
+    { id: 'members', icon: Users, label: 'Members' },
+    { id: 'payments', icon: Wallet, label: 'Payments' },
+    { id: 'auctions', icon: Gavel, label: 'Auctions' },
+    { id: 'analytics', icon: LineChart, label: 'Analytics' },
+    { id: 'notifications', icon: Bell, label: 'Alerts' }
+  ]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card w-full max-w-md p-10 flex flex-col items-center gap-8"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-accent to-purple-500 flex items-center justify-center text-white shadow-[0_0_30px_rgba(79,172,254,0.3)]">
+             <span className="text-4xl font-black">C.</span>
+          </div>
+
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-2">Welcome Back</h1>
+            <p className="text-white/40 text-sm">Demo Access • ChitAdmin Pro System</p>
+          </div>
+
+          <form
+            className="w-full space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const success = await login(loginEmail);
+              if (!success) setLoginError('Invalid demo email.');
+            }}
+          >
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-white/50 px-1">Email Address</label>
+              <select
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="glass-input w-full bg-[#1a1a2e]"
+              >
+                <option value="master@demo.com">Master Admin (master@demo.com)</option>
+                <option value="admin@demo.com">Chit Admin (admin@demo.com)</option>
+                <option value="user@demo.com">Regular User (user@demo.com)</option>
+              </select>
+            </div>
+            {loginError && <p className="text-rose-400 text-[10px] font-bold px-1">{loginError}</p>}
+            <button type="submit" className="w-full glass-btn glass-btn-primary py-4 mt-4 font-bold tracking-widest uppercase text-xs">
+               Access Demo Portal
+            </button>
+          </form>
+
+          <p className="text-[10px] text-white/20 text-center leading-relaxed">
+            Note: This is a demo environment. Actual login and signup functionalities will be implemented in the next phase.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-24 glass border-r-0 rounded-none border-white/10 flex flex-col gap-8 py-8 items-center z-50">
+    <div className="flex flex-col md:flex-row min-h-screen overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-24 glass border-r-0 rounded-none border-white/10 flex-col gap-8 py-8 items-center z-50">
         <div className="font-black text-2xl text-accent mb-6">C.</div>
 
         <nav className="flex flex-col gap-6 flex-1 px-2">
-          {[
-            { id: 'dashboard', icon: LayoutDashboard },
-            { id: 'chits', icon: FolderKanban },
-            { id: 'members', icon: Users },
-            { id: 'payments', icon: Wallet },
-            { id: 'auctions', icon: Gavel },
-            { id: 'analytics', icon: LineChart },
-            { id: 'notifications', icon: Bell }
-          ].map((item) => (
+          {navigation.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
@@ -309,33 +381,110 @@ export default function App() {
                   ? 'bg-white/15 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
                   : 'text-white/50 hover:text-white'
               }`}
-              title={item.id.charAt(0).toUpperCase() + item.id.slice(1)}
+              title={item.label}
             >
               <item.icon size={22} />
             </button>
           ))}
         </nav>
 
-        <div className="mt-auto px-2">
+        <div className="mt-auto px-2 flex flex-col gap-4 items-center">
+          <button
+            onClick={() => logout()}
+            className="w-12 h-12 flex items-center justify-center rounded-xl text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+            title="Logout"
+          >
+            <Clock size={22} className="rotate-180" />
+          </button>
           <div className="w-10 h-10 rounded-xl glass border-2 border-accent/50 overflow-hidden">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin" alt="Admin" />
+            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name}`} alt={user?.name} />
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative bg-transparent">
-        <header className="px-10 py-8 flex justify-between items-center bg-transparent border-b border-white/5 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white mb-1">Chit Management Dashboard</h1>
-            <p className="text-white/40 text-sm">Admin System • Monitoring Unit 01</p>
+      {/* Mobile Bottom Nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-white/10 z-[100] flex justify-around items-center py-3 px-2">
+        {navigation.slice(0, 5).map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center gap-1 transition-all ${
+              activeTab === item.id ? 'text-accent' : 'text-white/40'
+            }`}
+          >
+            <item.icon size={20} />
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="flex flex-col items-center gap-1 text-white/40"
+        >
+          <Menu size={20} />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
+      </nav>
+
+      {/* Mobile More Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-[110] md:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute bottom-0 left-0 right-0 glass-card rounded-t-3xl p-8 pb-12"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold">More Options</h3>
+                <button onClick={() => setMobileMenuOpen(false)} className="p-2"><X size={20}/></button>
+              </div>
+              <div className="grid grid-cols-3 gap-6">
+                {navigation.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${
+                      activeTab === item.id ? 'bg-white/10 text-accent' : 'text-white/60'
+                    }`}
+                  >
+                    <item.icon size={24} />
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="glass px-4 py-2 text-xs flex items-center gap-2 border-white/10">
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto relative bg-transparent pb-24 md:pb-0">
+        <header className="px-6 md:px-10 py-6 md:py-8 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-transparent border-b border-white/5 gap-4 md:mb-8">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white mb-1">
+              {user.role === 'user' ? 'Member Portal' : 'Chit Management'}
+            </h1>
+            <p className="text-white/40 text-[10px] md:text-sm uppercase tracking-wider font-semibold">
+              {user.role === 'master_admin' ? 'Master Admin • System Root' :
+               user.role === 'admin' ? 'Admin System • Monitoring Unit 01' :
+               `Welcome back, ${user.name}`}
+            </p>
+          </div>
+          <div className="flex gap-4 items-center w-full sm:w-auto">
+            <div className="hidden lg:flex glass px-4 py-2 text-xs items-center gap-2 border-white/10">
                <div className="w-2 h-2 bg-success rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
                Notification Engine Active
             </div>
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={14} />
               <input
                 type="text"
@@ -348,7 +497,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="px-10 pb-10">
+        <div className="px-6 md:px-10 pb-20 md:pb-10">
           <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div
@@ -357,19 +506,44 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="flex flex-col gap-8"
+              className="flex flex-col gap-6 md:gap-8"
             >
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-                <StatCard label="Total Collected" value={`₹${stats.totalCollected.toLocaleString()}`} sub="Current Cash" color="accent" icon={Wallet} />
-                <StatCard label="Discount Pool" value={`₹${stats.discountAccumulated.toLocaleString()}`} sub="Shared Benefit" color="success" icon={ArrowUpRight} />
-                <StatCard label="Pot Balance" value={`₹${stats.potBalance.toLocaleString()}`} sub="Remaining Value" color="danger" icon={FolderKanban} />
-                <StatCard label="Total Members" value={stats.totalMembers} sub="Active Participants" color="warning" icon={Users} />
-                <StatCard label="Defaulter Watch" value={stats.defaulters} sub="Needs Attention" color="rose" icon={AlertCircle} />
-              </div>
+              {user.role === 'user' ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+                   <StatCard
+                    label="My Total Paid"
+                    value={`₹${payments.filter(p => p.member_id === user.member_id && p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`}
+                    sub="Total Contribution" color="accent" icon={Wallet}
+                   />
+                   <StatCard
+                    label="Active Chits"
+                    value={chits.filter(c => members.find(m => m.id === user.member_id)?.chit_id === c.id).length}
+                    sub="Participating In" color="success" icon={FolderKanban}
+                   />
+                   <StatCard
+                    label="Pending Dues"
+                    value={`₹${payments.filter(p => p.member_id === user.member_id && p.status === 'unpaid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`}
+                    sub="Due this month" color="danger" icon={AlertCircle}
+                   />
+                   <StatCard
+                    label="Auctions Won"
+                    value={auctions.filter(a => a.winner_id === user.member_id).length}
+                    sub="Personal Wins" color="warning" icon={Gavel}
+                   />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-5">
+                  <StatCard label="Total Collected" value={`₹${stats.totalCollected.toLocaleString()}`} sub="Current Cash" color="accent" icon={Wallet} />
+                  <StatCard label="Discount Pool" value={`₹${stats.discountAccumulated.toLocaleString()}`} sub="Shared Benefit" color="success" icon={ArrowUpRight} />
+                  <StatCard label="Pot Balance" value={`₹${stats.potBalance.toLocaleString()}`} sub="Remaining Value" color="danger" icon={FolderKanban} />
+                  <StatCard label="Total Members" value={stats.totalMembers} sub="Active Participants" color="warning" icon={Users} />
+                  <StatCard label="Defaulter Watch" value={stats.defaulters} sub="Needs Attention" color="rose" icon={AlertCircle} />
+                </div>
+              )}
 
               {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="glass-card">
                   <h3 className="text-sm font-semibold mb-6 flex items-center justify-between">
                     <span>Cash Flow & Collection</span>
@@ -430,8 +604,25 @@ export default function App() {
               </div>
 
               {/* Lists Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="glass-card overflow-hidden">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {user.role === 'user' && (
+                  <div className="glass-card border-accent/20 bg-accent/5">
+                    <h3 className="text-sm font-semibold mb-4">Request Admin Privileges</h3>
+                    <p className="text-xs text-white/50 mb-6 leading-relaxed">
+                      Need to manage your own chits or oversee group auctions? Request admin access from the Master Admin.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        await requestAdmin();
+                        alert('Request submitted to Master Admin.');
+                      }}
+                      className="w-full glass-btn glass-btn-primary py-3"
+                    >
+                      Submit Request
+                    </button>
+                  </div>
+                )}
+                <div className={`${user.role === 'user' ? 'xl:col-span-1' : 'xl:col-span-1'} glass-card overflow-hidden`}>
                   <div className="p-1 px-0 flex justify-between items-center mb-4">
                     <h3 className="text-sm font-semibold">Defaulter Watch</h3>
                     <button className="text-[10px] text-accent hover:underline uppercase tracking-wider font-bold">View List</button>
@@ -515,9 +706,18 @@ export default function App() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
             >
-              {chits.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((chit) => (
+              {chits
+                .filter(c => {
+                  const baseFilter = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+                  if (user.role === 'user') {
+                    const member = members.find(m => m.id === user.member_id);
+                    return baseFilter && member?.chit_id === c.id;
+                  }
+                  return baseFilter;
+                })
+                .map((chit) => (
                 <div key={chit.id} className="glass-card border-l-4 border-l-indigo-500">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -630,11 +830,15 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {members.filter(m =>
-                      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      m.phone?.includes(searchQuery) ||
-                      m.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                    ).map((member) => (
+                    {members
+                      .filter(m => {
+                        const baseFilter = m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          m.phone?.includes(searchQuery) ||
+                          m.email?.toLowerCase().includes(searchQuery.toLowerCase());
+                        if (user.role === 'user') return baseFilter && m.id === user.member_id;
+                        return baseFilter;
+                      })
+                      .map((member) => (
                       <tr key={member.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                         <td className="py-4 flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-bold">
@@ -730,10 +934,14 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {payments.filter(p =>
-                        p.member_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        p.method.toLowerCase().includes(searchQuery.toLowerCase())
-                      ).map((pay) => (
+                      {payments
+                        .filter(p => {
+                          const baseFilter = p.member_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            p.method.toLowerCase().includes(searchQuery.toLowerCase());
+                          if (user.role === 'user') return baseFilter && p.member_id === user.member_id;
+                          return baseFilter;
+                        })
+                        .map((pay) => (
                         <tr key={pay.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
                           <td className="py-3">{pay.payment_date || '-'}</td>
                           <td className="py-3 font-medium">{pay.member_name}</td>
@@ -764,6 +972,61 @@ export default function App() {
               </div>
             </motion.div>
           )}
+          {activeTab === 'users' && user.role === 'master_admin' && (
+            <motion.div
+              key="users"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col gap-6"
+            >
+              <div className="glass-card">
+                 <h3 className="text-sm font-semibold mb-6">User Permissions & Admin Requests</h3>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-white/5 opacity-40 uppercase text-[9px]">
+                          <th className="py-3 px-2">User</th>
+                          <th className="py-3 px-2">Role</th>
+                          <th className="py-3 px-2">Request Status</th>
+                          <th className="py-3 px-2 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { name: 'John Doe', email: 'user@demo.com', role: 'user', admin_requested: 1 },
+                          { name: 'Sarah M.', email: 'sarah@demo.com', role: 'user', admin_requested: 0 }
+                        ].map((u, i) => (
+                          <tr key={i} className="border-b border-white/5 last:border-0">
+                            <td className="py-4 px-2">
+                               <div className="font-medium">{u.name}</div>
+                               <div className="text-[10px] text-white/30">{u.email}</div>
+                            </td>
+                            <td className="py-4 px-2 uppercase text-[10px] font-bold">{u.role}</td>
+                            <td className="py-4 px-2">
+                               {u.admin_requested ? <span className="text-amber-400 font-bold">PENDING REQUEST</span> : <span className="text-white/20">-</span>}
+                            </td>
+                            <td className="py-4 px-2 text-right">
+                               {u.admin_requested === 1 && (
+                                 <button
+                                   onClick={async () => {
+                                      await updateUserRole(u.email, 'admin');
+                                      alert(`Admin access granted to ${u.name}`);
+                                   }}
+                                   className="glass-btn glass-btn-primary text-[10px] py-1 px-3"
+                                 >
+                                   Grant Admin
+                                 </button>
+                               )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                 </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'notifications' && (
             <motion.div
               key="notifications"
@@ -782,7 +1045,12 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-4">
-                     {notifications.map((log, i) => (
+                     {notifications
+                      .filter(log => {
+                        if (user.role === 'user') return log.member_id === user.member_id;
+                        return true;
+                      })
+                      .map((log, i) => (
                        <div key={i} className="p-4 bg-white/5 rounded-xl border border-white/5 flex items-center justify-between">
                          <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center text-indigo-400">
