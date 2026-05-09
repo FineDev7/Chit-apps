@@ -26,23 +26,52 @@ async function startServer() {
   // API Routes
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
+    
+    console.log(`Login attempt: email=${email}, password=${password}`);
+    
     try {
-      const { data, error } = await supabase
+      // First try to find by email
+      let { data, error } = await supabase
         .from("users")
         .select("*")
-        .or(`email.eq.${email},username.eq.${email}`)
-        .eq("password", password);
+        .eq("email", email.toLowerCase());
       
       if (error) {
-        console.error("Supabase error:", error);
-        return res.status(401).json({ error: "Invalid credentials" });
+        console.error("Supabase email query error:", error);
       }
+      
+      // If not found by email, try by username
+      if (!data || data.length === 0) {
+        const { data: usernameData, error: usernameError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("username", email.toLowerCase());
+        
+        if (usernameError) {
+          console.error("Supabase username query error:", usernameError);
+        }
+        
+        data = usernameData || [];
+      }
+      
+      console.log(`Found users: ${data?.length || 0}`);
       
       if (!data || data.length === 0) {
+        console.log("No user found");
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
-      res.json(data[0]); // Return first match
+      // Check password
+      const user = data[0];
+      console.log(`Comparing passwords: input="${password}", stored="${user.password}"`);
+      
+      if (user.password !== password) {
+        console.log("Password mismatch");
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      console.log("Login successful");
+      res.json(user);
     } catch (err) {
       console.error("Login error:", err);
       res.status(500).json({ error: "Server error" });
