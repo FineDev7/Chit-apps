@@ -128,14 +128,27 @@ async function startServer() {
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     if (isSupabase) {
-      const { data, error } = await supabase!
-        .from("users")
-        .select("*")
-        .or(`email.eq.${email},username.eq.${email}`)
-        .eq("password", password)
-        .single();
-      if (error) return res.status(401).json({ error: "Invalid credentials" });
-      res.json(data);
+      try {
+        const { data, error } = await supabase!
+          .from("users")
+          .select("*")
+          .or(`email.eq.${email},username.eq.${email}`)
+          .eq("password", password);
+        
+        if (error) {
+          console.error("Supabase error:", error);
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        
+        if (!data || data.length === 0) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        
+        res.json(data[0]); // Return first match
+      } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ error: "Server error" });
+      }
     } else {
       sqliteDb!.get("SELECT * FROM users WHERE (email = ? OR username = ?) AND password = ?", [email, email, password], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
